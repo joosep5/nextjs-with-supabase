@@ -1,3 +1,4 @@
+//app/layout.tsx
 import DeployButton from "@/components/deploy-button";
 import { EnvVarWarning } from "@/components/env-var-warning";
 import HeaderAuth from "@/components/header-auth";
@@ -7,6 +8,8 @@ import { GeistSans } from "geist/font/sans";
 import { ThemeProvider } from "next-themes";
 import Link from "next/link";
 import "./globals.css";
+import { UserProvider } from "@/components/context/UserContext";  // Impordi UserProvider
+
 
 const defaultUrl = process.env.VERCEL_URL
   ? `https://${process.env.VERCEL_URL}`
@@ -26,6 +29,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={GeistSans.className} suppressHydrationWarning>
       <body className="bg-background text-foreground">
+      <UserProvider>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
@@ -66,6 +70,7 @@ export default function RootLayout({
             </div>
           </main>
         </ThemeProvider>
+        </UserProvider>
       </body>
     </html>
   );

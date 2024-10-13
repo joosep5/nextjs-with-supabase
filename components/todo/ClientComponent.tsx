@@ -1,21 +1,28 @@
-// components/todo/ClientComponent.tsx
 "use client";
 import { createClient } from "@/utils/supabase/client";
 import { useEffect, useState } from "react";
 import { Button } from "../ui/button";
+import { useUser } from "@/components/context/UserContext";  // Impordi useUser hook
 
 export default function ClientTodo() {
     const [todos, setTodos] = useState<any[] | null>([]);
-    const [newTodo, setNewTodo] = useState(""); // For new TODO title
-    const [updatedTodo, setUpdatedTodo] = useState(""); // For updating TODO title
-    const [editingId, setEditingId] = useState<number | null>(null); // To track which TODO is being edited
+    const [newTodo, setNewTodo] = useState("");  // Uue TODO jaoks
+    const [updatedTodo, setUpdatedTodo] = useState("");  // TODO uuendamiseks
+    const [editingId, setEditingId] = useState<number | null>(null);  // Redigeerimise jälgimine
+    const [loading, setLoading] = useState(true);  // Laadimise olek
     const supabase = createClient();
+    const { user } = useUser();  // Kasutaja info
 
     useEffect(() => {
-        getTodos();
-    }, []);
+        if (user) {
+            setLoading(false);  // Kui kasutaja on saadaval, lõpetame laadimise
+            getTodos();  // Hangi TODO-d, kui kasutaja on olemas
+        } else {
+            setLoading(false);  // Kui kasutajat pole, lõpetame ka laadimise
+        }
+    }, [user]);  // Kui kasutaja muutub, laadi uuesti TODO-d
 
-    // Fetch todos from the database
+    // TODO-de pärimine andmebaasist
     const getTodos = async () => {
         const { data: todos, error } = await supabase
             .from('todos')
@@ -23,20 +30,21 @@ export default function ClientTodo() {
         setTodos(todos);
     };
 
-    // Insert a new todo
+    // TODO-de sisestamine
     const insertTodo = async () => {
+        if (!user) return;  // Veendu, et kasutaja on määratud enne sisestamist
         const { data, error } = await supabase
             .from('todos')
-            .insert([{ title: newTodo, priority: '2' }])
+            .insert([{ title: newTodo, priority: '2', user_id: user?.id }])  // Lisa kasutaja ID
             .select();
 
         if (!error) {
-            setNewTodo(""); // Reset input
-            getTodos(); // Refresh the list
+            setNewTodo("");  // Tühjenda sisend
+            getTodos();  // Värskenda nimekirja
         }
     };
 
-    // Update an existing todo
+    // TODO-de värskendamine
     const updateTodo = async (id: number) => {
         const { data, error } = await supabase
             .from('todos')
@@ -44,13 +52,13 @@ export default function ClientTodo() {
             .eq('id', id);
 
         if (!error) {
-            setEditingId(null); // Stop editing mode
-            setUpdatedTodo(""); // Reset input
-            getTodos(); // Refresh the list
+            setEditingId(null);  // Lõpeta redigeerimisrežiim
+            setUpdatedTodo("");  // Tühjenda sisend
+            getTodos();  // Värskenda nimekirja
         }
     };
 
-    // Delete a todo
+    // TODO-de kustutamine
     const deleteTodo = async (id: number) => {
         const { data, error } = await supabase
             .from('todos')
@@ -58,19 +66,20 @@ export default function ClientTodo() {
             .eq('id', id);
 
         if (!error) {
-            getTodos(); // Refresh the list
+            getTodos();  // Värskenda nimekirja
         }
     };
 
-    if (!todos || todos.length === 0) return <h1>No todos found</h1>;
+    // Kui TODO-sid ei leita või pole kasutajat sisse logitud
+    if (loading) return <h1>Loading...</h1>;  // Kuvatakse laadimise ajal
+    if (!todos || todos.length === 0) return <h1>No todos. Login to see and edit todos </h1>;
 
     return (
         <main className="flex-1 flex flex-col gap-6 px-4">
-            {/* List of Todos */}
+            {/* TODO-de nimekiri */}
             {todos.map((todo) => (
                 <div key={todo.id} className="flex justify-between items-center">
                     {editingId === todo.id ? (
-                        // Editing mode
                         <>
                             <input
                                 type="text"
@@ -82,7 +91,6 @@ export default function ClientTodo() {
                             <Button onClick={() => setEditingId(null)}>Cancel</Button>
                         </>
                     ) : (
-                        // Normal mode
                         <>
                             <span>{todo.title}</span>
                             <Button onClick={() => setEditingId(todo.id)}>Edit</Button>
@@ -92,7 +100,7 @@ export default function ClientTodo() {
                 </div>
             ))}
 
-            {/* Input for new TODO */}
+            {/* Uue TODO sisend */}
             <div className="flex gap-2">
                 <input
                     type="text"
@@ -102,6 +110,17 @@ export default function ClientTodo() {
                     className="border border-gray-400 p-1"
                 />
                 <Button onClick={insertTodo}>Insert todo</Button>
+                
+                {/* User contexti kontroll */}
+                <div className="my-4 text-center">
+                    {loading ? (
+                        <p>Loading user info...</p>
+                    ) : user ? (
+                        <p>Logged in as: {user.email}</p>
+                    ) : (
+                        <p>No user is logged in</p>
+                    )}
+                </div>
             </div>
         </main>
     );
